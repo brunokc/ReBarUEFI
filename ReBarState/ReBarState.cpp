@@ -25,7 +25,7 @@ SPDX-License-Identifier: MIT
 #define VARIABLE_ATTRIBUTE_BOOTSERVICE_ACCESS 0x00000002
 #define VARIABLE_ATTRIBUTE_RUNTIME_ACCESS 0x00000004
 
-bool notExist = false;
+#define VALUE_NOT_PRESENT	UINT8_MAX
 
 // Windows
 #ifdef _MSC_VER
@@ -65,10 +65,8 @@ uint8_t GetState() {
 
 	if (rSize == 1)
 		return rBarState;
-	else {
-		notExist = true;
-		return 0;
-	}
+
+	return VALUE_NOT_PRESENT;
 }
 
 bool WriteState(uint8_t rBarState) {
@@ -86,7 +84,7 @@ bool WriteState(uint8_t rBarState) {
 #define REBARPATH /sys/firmware/efi/efivars/VNAME-VGUID
 #define REBARPS STR(REBARPATH)
 
-struct __attribute__((__packed__)) rebarVar {
+struct __attribute__((__packed__)) RebarVar {
 	uint32_t attr;
 	uint8_t value;
 };
@@ -96,17 +94,16 @@ bool CheckPriviledge() {
 }
 
 uint8_t GetState() {
-	uint8_t rebarState[5];
+	RebarVar rebarState = {0};
 
 	FILE* f = fopen(REBARPS, "rb");
 
-	if (!(f && (fread(&rebarState, 5, 1, f) == 1))) {
-		rebarState[4] = 0;
-		notExist = true;
+	if (!(f && (fread(&rebarState, sizeof(RebarVar), 1, f) == 1))) {
+		rebarState.value = VALUE_NOT_PRESENT;
 	} else
 		fclose(f);
 
-	return rebarState[4];
+	return rebarState.value;
 }
 
 bool WriteState(uint8_t rBarState) {
@@ -129,7 +126,7 @@ bool WriteState(uint8_t rBarState) {
 
 	f = fopen(REBARPS, "wb");
 
-	rebarVar rVar = {
+	RebarVar rVar = {
 		.attr = VARIABLE_ATTRIBUTE_NON_VOLATILE | VARIABLE_ATTRIBUTE_BOOTSERVICE_ACCESS |
 			VARIABLE_ATTRIBUTE_RUNTIME_ACCESS,
 		.value = rBarState,
@@ -158,8 +155,7 @@ int main()
 	}
 
 	reBarState = GetState();
-
-	if (!notExist) {
+	if (reBarState != VALUE_NOT_PRESENT) {
 		if (reBarState == 0)
 			std::cout << "Current ReBarState " << +reBarState << " / Disabled\n";
 		else
@@ -178,11 +174,11 @@ int main()
 
 	std::getline(std::cin, i);
 
-	if (std::stoi(i) > 32) {
+	reBarState = std::stoi(i);
+	if (reBarState > 32) {
 		std::cout << "Invalid value\n";
 		goto exit;
 	}
-	reBarState = std::stoi(i);
 
 	if (reBarState < 20)
 		if (reBarState == 0)
