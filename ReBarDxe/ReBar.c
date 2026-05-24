@@ -10,8 +10,10 @@ SPDX-License-Identifier: MIT
 #include <IndustryStandard/Pci22.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/DebugLib.h>
+
 #include "include/pciRegs.h"
 #include "include/PciHostBridgeResourceAllocation.h"
+#include "ExclusionList.h"
 
 #ifdef _MSC_VER
 #pragma warning(disable:28251)
@@ -28,7 +30,7 @@ SPDX-License-Identifier: MIT
 #define BUILD_YEAR 2023
 
 // a3c5b77a-c88f-4a93-bf1c-4a92a32c65ce
-static GUID reBarStateGuid = { 0xa3c5b77a, 0xc88f, 0x4a93, {0xbf, 0x1c, 0x4a, 0x92, 0xa3, 0x2c, 0x65, 0xce}};
+GUID reBarStateGuid = { 0xa3c5b77a, 0xc88f, 0x4a93, {0xbf, 0x1c, 0x4a, 0x92, 0xa3, 0x2c, 0x65, 0xce}};
 
 // 0: disabled
 // >0: maximum BAR size (2^x) set to value. UINT8_MAX for unlimited
@@ -162,6 +164,11 @@ UINT32 pciRebarGetPossibleSizes(UINTN pciAddress, UINTN epos, UINT16 vid, UINT16
 
     pciReadConfigDword(pciAddress, pos + PCI_REBAR_CAP, &cap);
     cap &= PCI_REBAR_CAP_SIZES;
+
+    if (IsDeviceInExclusionList(vid, did)) {
+        DEBUG((DEBUG_INFO, "ReBarDXE: Device vid:%x did:%x is in exclusion list, skipping ReBar setup\n", vid, did));
+        return 0;
+    }
 
     /* Sapphire RX 5600 XT Pulse has an invalid cap dword for BAR 0 */
     if (vid == PCI_VENDOR_ID_ATI && did == 0x731f &&
@@ -322,6 +329,12 @@ EFI_STATUS EFIAPI rebarInit(
 
         // For overriding PciHostBridgeResourceAllocationProtocol
         pciHostBridgeResourceAllocationProtocolHook();
+    }
+
+    status = LoadExclusionList();
+    if (EFI_ERROR(status)) {
+        // We can still continue without exclusion list, just log the error and return success
+        DEBUG((DEBUG_ERROR, "ReBarDXE: Failed to load exclusion list variable: %r. Continuing...\n", status));
     }
 
     return EFI_SUCCESS;
