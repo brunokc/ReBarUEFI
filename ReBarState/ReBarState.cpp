@@ -111,7 +111,6 @@ uint8_t GetState() {
 
 bool WriteState(uint8_t rBarState) {
 	int attr;
-	rebarVar rVar;
 	FILE* f = fopen(REBARPS, "rb");
 
 	if (f) {
@@ -124,14 +123,23 @@ bool WriteState(uint8_t rBarState) {
 			std::cout << "Failed to remove old variable\n";
 			return false;
 		}
+
+		fclose(f);
 	}
 
 	f = fopen(REBARPS, "wb");
 
-	rVar.attr = VARIABLE_ATTRIBUTE_NON_VOLATILE | VARIABLE_ATTRIBUTE_BOOTSERVICE_ACCESS | VARIABLE_ATTRIBUTE_RUNTIME_ACCESS;
-	rVar.value = rBarState;
+	rebarVar rVar = {
+		.attr = VARIABLE_ATTRIBUTE_NON_VOLATILE | VARIABLE_ATTRIBUTE_BOOTSERVICE_ACCESS |
+			VARIABLE_ATTRIBUTE_RUNTIME_ACCESS,
+		.value = rBarState,
+	};
 
-	return fwrite(&rVar, sizeof(rVar), 1, f) == 1;;
+	bool success = fwrite(&rVar, sizeof(rVar), 1, f) == 1;
+
+	fclose(f);
+
+	return success;
 }
 #endif
 
