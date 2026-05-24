@@ -42,6 +42,11 @@ def set_nx_compat_flag(pe):
     pe.merge_modified_section_data()
     return pe
 
+def run(cmd):
+    """Runs a command in the shell and checks for errors."""
+    result = subprocess.run(cmd, shell=shell, env=os.environ, stderr=sys.stderr, stdout=sys.stdout)
+    return result
+
 if len(sys.argv) > 1:
     buildtype = sys.argv[1].upper()
 
@@ -58,7 +63,7 @@ if len(sys.argv) == 3:
 else:
     os.chdir("../..")
 
-subprocess.run(["build", "--platform=ReBarUEFI/ReBarDxe/ReBar.dsc"], shell=shell, env=os.environ, stderr=sys.stderr, stdout=sys.stdout)
+run(["build", "--platform=ReBarUEFI/ReBarDxe/ReBar.dsc"])
 
 ReBarDXE = glob.glob(f"./Build/ReBarUEFI/{buildtype}_*/X64/ReBarDxe.efi")
 
@@ -84,9 +89,9 @@ try:
 except FileNotFoundError:
     pass
 
-subprocess.run(["GenSec", "-o", "pe32.sec", "ReBarDxe.efi", "-S", "EFI_SECTION_PE32"], shell=shell, env=os.environ, stderr=sys.stderr, stdout=sys.stdout)
-subprocess.run(["GenSec", "-o", "name.sec", "-S", "EFI_SECTION_USER_INTERFACE", "-n", name], shell=shell, env=os.environ, stderr=sys.stderr, stdout=sys.stdout)
-subprocess.run(["GenFfs", "-g", GUID, "-o", "ReBarDxe.ffs", "-i", "pe32.sec", "-i" ,"name.sec", "-t", "EFI_FV_FILETYPE_DRIVER", "--checksum"], shell=shell, env=os.environ, stderr=sys.stderr, stdout=sys.stdout)
+run(["GenSec", "-o", "pe32.sec", "ReBarDxe.efi", "-S", "EFI_SECTION_PE32"])
+run(["GenSec", "-o", "name.sec", "-S", "EFI_SECTION_USER_INTERFACE", "-n", name])
+run(["GenFfs", "-g", GUID, "-o", "ReBarDxe.ffs", "-i", "pe32.sec", "-i" ,"name.sec", "-t", "EFI_FV_FILETYPE_DRIVER", "--checksum"])
 
 try:
     os.remove("pe32.sec")
