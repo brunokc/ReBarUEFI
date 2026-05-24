@@ -15,11 +15,7 @@ SPDX-License-Identifier: MIT
 #include <sys/ioctl.h>
 #endif
 
-#define QUOTE(x) #x
-#define STR(x) QUOTE(x)
-
-#define VNAME ReBarState
-#define VGUID A3C5B77A-C88F-4A93-BF1C-4A92A32C65CE
+#include "Common/Common.h"
 
 #define VARIABLE_ATTRIBUTE_NON_VOLATILE 0x00000001
 #define VARIABLE_ATTRIBUTE_BOOTSERVICE_ACCESS 0x00000002
@@ -58,8 +54,8 @@ uint8_t GetState() {
 	UINT8 rBarState;
 	DWORD rSize;
 
-	const TCHAR name[] = TEXT(STR(VNAME));
-	const TCHAR guid[] = TEXT("{" STR(VGUID) "}");
+	const TCHAR name[] = TEXT(VAR_REBAR_STATE_STR);
+	const TCHAR guid[] = TEXT("{" VENDOR_GUID_STR "}");
 
 	rSize = GetFirmwareEnvironmentVariable(name, guid, &rBarState, 1);
 
@@ -73,16 +69,16 @@ bool WriteState(uint8_t rBarState) {
 	DWORD size = sizeof(UINT8);
 	DWORD dwAttributes = VARIABLE_ATTRIBUTE_NON_VOLATILE | VARIABLE_ATTRIBUTE_BOOTSERVICE_ACCESS | VARIABLE_ATTRIBUTE_RUNTIME_ACCESS;
 
-	const TCHAR name[] = TEXT(STR(VNAME));
-	const TCHAR guid[] = TEXT("{" STR(VGUID) "}");
+	const TCHAR name[] = TEXT(VAR_REBAR_STATE_STR);
+	const TCHAR guid[] = TEXT("{" VENDOR_GUID_STR "}");
 
 	return SetFirmwareEnvironmentVariableEx(name, guid, &rBarState, size, dwAttributes) != 0;
 }
 // Linux
 #else
 
-#define REBARPATH /sys/firmware/efi/efivars/VNAME-VGUID
-#define REBARPS STR(REBARPATH)
+#define REBARPATH 	/sys/firmware/efi/efivars/VAR_REBAR_STATE-VENDOR_GUID
+#define REBARPS 	STR(REBARPATH)
 
 struct __attribute__((__packed__)) RebarVar {
 	uint32_t attr;
