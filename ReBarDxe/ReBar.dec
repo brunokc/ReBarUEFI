@@ -1,0 +1,8 @@
+[Defines]
+  DEC_SPECIFICATION = 0x00010005
+  PACKAGE_NAME      = ReBar
+  PACKAGE_GUID      = fedf3cc8-5370-4505-857b-48291b5df57a
+  PACKAGE_VERSION   = 1.0
+
+[Includes]
+  ..

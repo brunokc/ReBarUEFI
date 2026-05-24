@@ -7,10 +7,10 @@
 	SUPPORTED_ARCHITECTURES = X64
 	BUILD_TARGETS = DEBUG|RELEASE|NOOPT
 	SKUID_IDENTIFIER = DEFAULT
-	
+
 [Components]
 	ReBarUEFI/ReBarDxe/ReBarDxe.inf
-	
+
 !include MdePkg/MdeLibs.dsc.inc
 [LibraryClasses]
 	UefiLib|MdePkg/Library/UefiLib/UefiLib.inf

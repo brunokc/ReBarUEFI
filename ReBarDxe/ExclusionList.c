@@ -3,10 +3,8 @@
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/MemoryAllocationLib.h>
 
-// #include "Common.h"
+#include "Common/Common.h"
 #include "ExclusionList.h"
-
-#define EXCLUSION_LIST_VARIABLE_NAME L"ReBarDeviceExclusionList"
 
 extern GUID reBarStateGuid;
 
@@ -19,7 +17,7 @@ EFI_STATUS LoadExclusionList()
     ExclusionList* list = NULL;
 
     // Get the size of the exclusion list variable
-    status = gRT->GetVariable(EXCLUSION_LIST_VARIABLE_NAME, (EFI_GUID*)&reBarStateGuid, NULL, &bufferSize, NULL);
+    status = gRT->GetVariable(VAR_REBAR_EXCLUSION_LIST_WSTR, &reBarStateGuid, NULL, &bufferSize, NULL);
     if (status != EFI_BUFFER_TOO_SMALL) {
         return status;
     }
@@ -31,7 +29,7 @@ EFI_STATUS LoadExclusionList()
     }
 
     // Read the exclusion list variable
-    status = gRT->GetVariable(EXCLUSION_LIST_VARIABLE_NAME, (EFI_GUID*)&reBarStateGuid, NULL, &bufferSize, list);
+    status = gRT->GetVariable(VAR_REBAR_EXCLUSION_LIST_WSTR, &reBarStateGuid, NULL, &bufferSize, list);
     if (EFI_ERROR(status)) {
         FreePool(list);
         return status;

@@ -13,6 +13,7 @@
 [Packages]
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
+  ReBarUEFI/ReBarDxe/ReBar.dec
 
 [LibraryClasses]
   UefiDriverEntryPoint

@@ -13,6 +13,7 @@ SPDX-License-Identifier: MIT
 
 #include "include/pciRegs.h"
 #include "include/PciHostBridgeResourceAllocation.h"
+#include "Common/Common.h"
 #include "ExclusionList.h"
 
 #ifdef _MSC_VER
