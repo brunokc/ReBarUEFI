@@ -58,8 +58,8 @@ uint8_t GetState() {
 	UINT8 rBarState;
 	DWORD rSize;
 
-	const TCHAR name[] = TEXT("ReBarState");
-	const TCHAR guid[] = TEXT("{A3C5B77A-C88F-4A93-BF1C-4A92A32C65CE}");
+	const TCHAR name[] = TEXT(STR(VNAME));
+	const TCHAR guid[] = TEXT("{" STR(VGUID) "}");
 
 	rSize = GetFirmwareEnvironmentVariable(name, guid, &rBarState, 1);
 
@@ -75,8 +75,8 @@ bool WriteState(uint8_t rBarState) {
 	DWORD size = sizeof(UINT8);
 	DWORD dwAttributes = VARIABLE_ATTRIBUTE_NON_VOLATILE | VARIABLE_ATTRIBUTE_BOOTSERVICE_ACCESS | VARIABLE_ATTRIBUTE_RUNTIME_ACCESS;
 
-	const TCHAR name[] = TEXT("ReBarState");
-	const TCHAR guid[] = TEXT("{A3C5B77A-C88F-4A93-BF1C-4A92A32C65CE}");
+	const TCHAR name[] = TEXT(STR(VNAME));
+	const TCHAR guid[] = TEXT("{" STR(VGUID) "}");
 
 	return SetFirmwareEnvironmentVariableEx(name, guid, &rBarState, size, dwAttributes) != 0;
 }
