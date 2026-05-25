@@ -139,26 +139,26 @@ ExclusionListPtr ReadExclusionList() {
 	auto exclusionList = AllocateExclusionListBuffer(bufferSize);
 	if (!exclusionList) {
 		std::cout << "Failed to allocate memory for exclusion list\n";
-		return NullExclusionList();
+		return {};
 	}
 
 	status = GetFirmwareEnvironmentVariable(name, guid, exclusionList.get(), &bufferSize);
 	if (status == 0) {
 		std::cout << "Failed to read exclusion list variable\n";
-		return NullExclusionList();
+		return {};
 	}
 
 	if (exclusionList->version != EXCLUSION_LIST_VERSION) {
 		std::cout << "Incompatible NVRAM exclusion list version " << exclusionList->version
 			<< " (expected version " << EXCLUSION_LIST_VERSION << ")\n";
-		return NullExclusionList();
+		return {};
 	}
 
 	uint32_t expectedSize = GetExclusionListBufferSize(exclusionList);
 	if (bufferSize != expectedSize) {
 		std::cout << "Incompatible NVRAM exclusion list size " << bufferSize
 			<< " (expected size " << expectedSize << ")\n";
-		return NullExclusionList();
+		return {};
 	}
 
 	return exclusionList;
