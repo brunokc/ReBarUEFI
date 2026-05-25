@@ -38,29 +38,53 @@ void DeleteExclusionListBuffer(ExclusionList* list)
 	delete[] reinterpret_cast<uint8_t*>(list);
 }
 
+void NullDeleter(ExclusionList* list)
+{
+}
+
 struct SizeInBytes {};
 constexpr auto sizeInBytes = SizeInBytes{};
 
 struct ExclusionListPtr : std::unique_ptr<ExclusionList, decltype(&DeleteExclusionListBuffer)>
 {
-	ExclusionListPtr() :
-		std::unique_ptr<ExclusionList, decltype(&DeleteExclusionListBuffer)>(nullptr, DeleteExclusionListBuffer)
+	using base = std::unique_ptr<ExclusionList, decltype(&DeleteExclusionListBuffer)>;
+
+	ExclusionListPtr() : base(nullptr, DeleteExclusionListBuffer)
 	{
 	}
 
-	ExclusionListPtr(uint32_t entriesCount) :
-		ExclusionListPtr(GetBufferSize(entriesCount), sizeInBytes)
+	ExclusionListPtr(ExclusionList* list) : base(list, NullDeleter)
+	{
+		// Constructor to wrap a non-owning buffer, so we can't free the memory during destruction.
+	}
+
+	ExclusionListPtr(uint32_t entriesCount) : ExclusionListPtr(GetBufferSize(entriesCount), sizeInBytes)
 	{
 	}
 
 	ExclusionListPtr(uint32_t bufferSize, const SizeInBytes&) :
-		std::unique_ptr<ExclusionList, decltype(&DeleteExclusionListBuffer)>(
+		base(
 			reinterpret_cast<ExclusionList*>(new (std::nothrow) uint8_t[bufferSize]),
 			DeleteExclusionListBuffer)
 	{
 	}
 
-	static uint32_t GetBufferSize(uint32_t entriesCount)
+	static auto Empty()
+	{
+		static ExclusionList emptyList = {
+			.version = EXCLUSION_LIST_VERSION,
+			.count = 0,
+			.entries = {
+				{
+					.vid = 0,
+					.pid = 0,
+				},
+			},
+		};
+		return ExclusionListPtr{&emptyList};
+	}
+
+	constexpr static uint32_t GetBufferSize(uint32_t entriesCount)
 	{
 		return sizeof(ExclusionList) + (entriesCount - 1) * sizeof(ExclusionListEntry);
 	}
@@ -68,6 +92,16 @@ struct ExclusionListPtr : std::unique_ptr<ExclusionList, decltype(&DeleteExclusi
 	uint32_t GetBufferSize() const
 	{
 		return GetBufferSize(get()->count);
+	}
+
+	bool CopyEntriesFrom(const ExclusionListPtr& list)
+	{
+		if (list->count > get()->count) {
+			return false;
+		}
+		std::memcpy(get()->entries, list->entries, list->count * sizeof(ExclusionListEntry));
+		get()->count = list->count;
+		return true;
 	}
 };
 
@@ -114,29 +148,28 @@ uint8_t GetState() {
 }
 
 bool WriteState(uint8_t rBarState) {
-	const DWORD dwAttributes = VARIABLE_ATTRIBUTE_NON_VOLATILE | VARIABLE_ATTRIBUTE_BOOTSERVICE_ACCESS |
-		VARIABLE_ATTRIBUTE_RUNTIME_ACCESS;
-
 	const TCHAR name[] = TEXT(VAR_REBAR_STATE_STR);
 	const TCHAR guid[] = TEXT("{" VENDOR_GUID_STR "}");
+
+	const DWORD dwAttributes = VARIABLE_ATTRIBUTE_NON_VOLATILE | VARIABLE_ATTRIBUTE_BOOTSERVICE_ACCESS |
+		VARIABLE_ATTRIBUTE_RUNTIME_ACCESS;
 
 	return SetFirmwareEnvironmentVariableEx(name, guid, &rBarState, sizeof(rBarState), dwAttributes) != 0;
 }
 
 ExclusionListPtr ReadExclusionList() {
-	DWORD bufferSize = 0;
-
 	const TCHAR name[] = TEXT(VAR_REBAR_EXCLUSION_LIST_STR);
 	const TCHAR guid[] = TEXT("{" VENDOR_GUID_STR "}");
 
 	// Get the size of the exclusion list variable
+	DWORD bufferSize = 0;
 	DWORD status = GetFirmwareEnvironmentVariable(name, guid, NULL, &bufferSize);
 	if (status != 0 || GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
 		std::cout << "Failed to get size of exclusion list variable\n";
 		return {};
 	}
 
-	auto exclusionList = AllocateExclusionListBuffer(bufferSize);
+	auto exclusionList = ExclusionListPtr{bufferSize, sizeInBytes};
 	if (!exclusionList) {
 		std::cout << "Failed to allocate memory for exclusion list\n";
 		return {};
@@ -164,15 +197,15 @@ ExclusionListPtr ReadExclusionList() {
 	return exclusionList;
 }
 
-bool WriteExclusionList(ExclusionList* exclusionList) {
+bool WriteExclusionList(const ExclusionListPtr& exclusionList) {
 	const DWORD dwAttributes = VARIABLE_ATTRIBUTE_NON_VOLATILE | VARIABLE_ATTRIBUTE_BOOTSERVICE_ACCESS |
 		VARIABLE_ATTRIBUTE_RUNTIME_ACCESS;
 
 	const TCHAR name[] = TEXT(VAR_REBAR_EXCLUSION_LIST_STR);
 	const TCHAR guid[] = TEXT("{" VENDOR_GUID_STR "}");
 
-	DWORD bufferSize = GetExclusionListBufferSize(exclusionList->count);
-	return SetFirmwareEnvironmentVariableEx(name, guid, exclusionList, bufferSize, dwAttributes) != 0;
+	DWORD bufferSize = exclusionList.GetBufferSize();
+	return SetFirmwareEnvironmentVariableEx(name, guid, exclusionList.get(), bufferSize, dwAttributes) != 0;
 }
 
 // Linux
@@ -256,7 +289,7 @@ ExclusionListPtr ReadExclusionList() {
 	// subtract attributes
 	uint32_t dataSize = st.st_size - sizeof(uint32_t);
 
-	auto exclusionList = ExclusionListPtr{dataSize};
+	auto exclusionList = ExclusionListPtr{dataSize, sizeInBytes};
 	if (!exclusionList) {
 		std::cout << "Failed to allocate memory for exclusion list\n";
 		return {};
@@ -290,7 +323,7 @@ ExclusionListPtr ReadExclusionList() {
 	return exclusionList;
 }
 
-bool WriteExclusionList(ExclusionList* exclusionList) {
+bool WriteExclusionList(const ExclusionListPtr& exclusionList) {
 	if (!RemoveOldVariable(REBARPS)) {
 		std::cout << "Failed to remove old variable\n";
 		return false;
@@ -299,7 +332,7 @@ bool WriteExclusionList(ExclusionList* exclusionList) {
 	FILE* f = fopen(REBARPS, "wb");
 
 	// Attributes + size of exclusion list
-	uint32_t dataSize = sizeof(uint32_t) + ExclusionListPtr::GetBufferSize(exclusionList->count);
+	uint32_t dataSize = sizeof(uint32_t) + exclusionList.GetBufferSize();
 	auto rVarBuffer = std::make_unique<uint8_t[]>(dataSize);
 	if (!rVarBuffer) {
 		std::cout << "Failed to allocate memory for writing exclusion list variable\n";
@@ -309,7 +342,7 @@ bool WriteExclusionList(ExclusionList* exclusionList) {
 
 	rVar->attr = VARIABLE_ATTRIBUTE_NON_VOLATILE | VARIABLE_ATTRIBUTE_BOOTSERVICE_ACCESS |
 		VARIABLE_ATTRIBUTE_RUNTIME_ACCESS;
-	memcpy(rVar->value, exclusionList, dataSize - sizeof(uint32_t));
+	std::memcpy(rVar->value, exclusionList.get(), dataSize - sizeof(uint32_t));
 
 	bool success = (fwrite(rVar, dataSize, 1, f) == 1);
 
@@ -404,18 +437,7 @@ bool handleExclusionList(int argc, char* argv[], int idx)
 {
 	if (argc > idx + 1 && std::string_view(argv[idx + 1]) == "-c") {
 		// Clear the list by writing an empty exclusion list
-		ExclusionList emptyList = {
-			.version = EXCLUSION_LIST_VERSION,
-			.count = 0,
-			.entries = {
-				{
-					.vid = 0,
-					.pid = 0,
-				},
-			},
-		};
-
-		bool ok = WriteExclusionList(&emptyList);
+		bool ok = WriteExclusionList(ExclusionListPtr::Empty());
 		if (ok)
 			std::cout << "Exclusion list cleared\n";
 		else {
@@ -444,13 +466,16 @@ bool handleExclusionList(int argc, char* argv[], int idx)
 			return false;
 		}
 		newList->version = EXCLUSION_LIST_VERSION;
-		newList->count = newCount;
 		if (list && oldCount > 0)
-			memcpy(newList->entries, list->entries, oldCount * sizeof(ExclusionListEntry));
-		newList->entries[oldCount].vid = vid;
-		newList->entries[oldCount].pid = pid;
+			newList.CopyEntriesFrom(list);
 
-		bool ok = WriteExclusionList(newList.get());
+		// Add new entry
+		newList->entries[oldCount] = {
+			.vid = vid,
+			.pid = pid,
+		};
+
+		bool ok = WriteExclusionList(newList);
 		if (ok) {
 			std::cout << "Added " << std::hex << std::uppercase
 					  << std::setw(4) << std::setfill('0') << (uint16_t)vid
@@ -540,12 +565,12 @@ int main(int argc, char* argv[])
 	}
 
 	// Linux will probably be run from terminal not requiring this
-	#ifdef _MSC_VER
+#ifdef _MSC_VER
 	std::cout << "You can close the app now\n";
 exit:
 	std::cin.get();
-	#else
+#else
 exit:
-	#endif
+#endif
 	return ret;
 }
