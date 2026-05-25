@@ -1,5 +1,6 @@
 
 #include <Uefi.h>
+#include <Library/DebugLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/MemoryAllocationLib.h>
 
@@ -54,14 +55,14 @@ EFI_STATUS LoadExclusionList()
     return EFI_SUCCESS;
 }
 
-bool IsDeviceInExclusionList(UINT16 vid, UINT16 pid)
+bool IsDeviceInExclusionList(UINT16 vid, UINT16 did)
 {
     if (exclusionList == NULL) {
         return false;
     }
 
     for (UINT32 i = 0; i < exclusionList->count; i++) {
-        if (exclusionList->entries[i].vid == vid && exclusionList->entries[i].pid == pid) {
+        if (exclusionList->entries[i].vid == vid && exclusionList->entries[i].did == did) {
             return true;
         }
     }

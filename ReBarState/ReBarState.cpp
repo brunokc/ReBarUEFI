@@ -77,7 +77,7 @@ struct ExclusionListPtr : std::unique_ptr<ExclusionList, decltype(&DeleteExclusi
 			.entries = {
 				{
 					.vid = 0,
-					.pid = 0,
+					.did = 0,
 				},
 			},
 		};
@@ -359,8 +359,8 @@ void usage()
 	std::cout << "\nOptions:\n";
 	std::cout << "  -h, --help         Show this help message and exit\n";
 	std::cout << "  -s [<size>]        Read current size, or write the size if one is provided (see below)\n";
-	std::cout << "  -e                 Dump the vid/pid exclusion list\n";
-	std::cout << "  -e <vid> <pid>     Append a device to the exclusion list (hex VID and PID)\n";
+	std::cout << "  -e                 Dump the vid/did exclusion list\n";
+	std::cout << "  -e <vid> <did>     Append a device to the exclusion list (hex VID and DID)\n";
 	std::cout << "  -e -c              Clear the exclusion list\n";
 	std::cout << "\nSize values:\n";
 	std::cout << "       0: ReBar disabled\n";
@@ -445,15 +445,15 @@ bool handleExclusionList(int argc, char* argv[], int idx)
 			return false;
 		}
 	} else if (argc > idx + 2 && argv[idx + 1][0] != '-') {
-		// Add a new vid/pid to the exclusion list
+		// Add a new vid/did to the exclusion list
 		uint16_t vid;
 		if (!parseU16Value(argv[idx + 1], vid)) {
 			std::cout << "Invalid VID '" << argv[idx + 1] << "'\n";
 			return false;
 		}
-		uint16_t pid;
-		if (!parseU16Value(argv[idx + 2], pid)) {
-			std::cout << "Invalid PID '" << argv[idx + 2] << "'\n";
+		uint16_t did;
+		if (!parseU16Value(argv[idx + 2], did)) {
+			std::cout << "Invalid DID '" << argv[idx + 2] << "'\n";
 			return false;
 		}
 
@@ -472,14 +472,14 @@ bool handleExclusionList(int argc, char* argv[], int idx)
 		// Add new entry
 		newList->entries[oldCount] = {
 			.vid = vid,
-			.pid = pid,
+			.did = did,
 		};
 
 		bool ok = WriteExclusionList(newList);
 		if (ok) {
 			std::cout << "Added " << std::hex << std::uppercase
 					  << std::setw(4) << std::setfill('0') << (uint16_t)vid
-					  << ":" << std::setw(4) << (uint16_t)pid
+					  << ":" << std::setw(4) << (uint16_t)did
 					  << std::dec << " to exclusion list\n";
 		} else {
 			std::cout << "Failed to write exclusion list\n";
@@ -495,7 +495,7 @@ bool handleExclusionList(int argc, char* argv[], int idx)
 			for (uint32_t i = 0; i < list->count; i++) {
 				std::cout << "  [" << std::hex << std::uppercase
 						  << std::setw(4) << std::setfill('0') << (uint16_t)list->entries[i].vid
-						  << ":" << std::setw(4) << (uint16_t)list->entries[i].pid << "]\n";
+						  << ":" << std::setw(4) << (uint16_t)list->entries[i].did << "]\n";
 			}
 			std::cout << std::dec;
 		}

@@ -302,7 +302,7 @@ EFI_STATUS EFIAPI rebarInit(
     DEBUG((DEBUG_INFO, "ReBarDXE: Loaded\n"));
 
     // Read ReBarState variable
-    status = gRT->GetVariable(L"ReBarState", &reBarStateGuid,
+    status = gRT->GetVariable(VAR_REBAR_STATE_WSTR, &reBarStateGuid,
         &attributes,
         &bufferSize, &reBarState);
 
@@ -317,11 +317,13 @@ EFI_STATUS EFIAPI rebarInit(
         // Detect CMOS reset by checking if year before BUILD_YEAR
         status = gRT->GetTime (&time, NULL);
         if (time.Year < BUILD_YEAR) {
+            DEBUG((DEBUG_INFO, "ReBarDXE: CMOS reset detected, disabling ReBarState\n"));
+
             reBarState = 0;
             bufferSize = 1;
             attributes = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS;
 
-            status = gRT->SetVariable(L"ReBarState", &reBarStateGuid,
+            status = gRT->SetVariable(VAR_REBAR_STATE_WSTR, &reBarStateGuid,
                 attributes,
                 bufferSize, &reBarState);
 

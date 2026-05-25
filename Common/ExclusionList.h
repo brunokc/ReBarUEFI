@@ -18,7 +18,7 @@
 typedef PACKED_STRUCT
 {
     uint16_t vid;
-    uint16_t pid;
+    uint16_t did;
 } ExclusionListEntry;
 
 typedef PACKED_STRUCT
