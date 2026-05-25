@@ -166,11 +166,6 @@ UINT32 pciRebarGetPossibleSizes(UINTN pciAddress, UINTN epos, UINT16 vid, UINT16
     pciReadConfigDword(pciAddress, pos + PCI_REBAR_CAP, &cap);
     cap &= PCI_REBAR_CAP_SIZES;
 
-    if (IsDeviceInExclusionList(vid, did)) {
-        DEBUG((DEBUG_INFO, "ReBarDXE: Device vid:%x did:%x is in exclusion list, skipping ReBar setup\n", vid, did));
-        return 0;
-    }
-
     /* Sapphire RX 5600 XT Pulse has an invalid cap dword for BAR 0 */
     if (vid == PCI_VENDOR_ID_ATI && did == 0x731f &&
         bar == 0 && cap == 0x7000)
@@ -210,6 +205,11 @@ VOID reBarSetupDevice(EFI_HANDLE handle, EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL_PCI_ADD
 
     if (vid == 0xFFFF)
         return;
+
+    if (IsDeviceInExclusionList(vid, did)) {
+        DEBUG((DEBUG_INFO, "ReBarDXE: Device vid:%x did:%x is in the exclusion list, skipping ReBar setup\n", vid, did));
+        return;
+    }
 
     DEBUG((DEBUG_INFO, "ReBarDXE: Device vid:%x did:%x\n", vid, did));
 
