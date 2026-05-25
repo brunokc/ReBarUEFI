@@ -4,7 +4,7 @@
 #include <Library/MemoryAllocationLib.h>
 
 #include "Common/Common.h"
-#include "ExclusionList.h"
+#include "Common/ExclusionList.h"
 
 extern GUID reBarStateGuid;
 
@@ -35,18 +35,33 @@ EFI_STATUS LoadExclusionList()
         return status;
     }
 
+    if (list->version != EXCLUSION_LIST_VERSION) {
+        DEBUG((DEBUG_INFO, "ReBarDXE: incompatible NVRAM exclusion list version %d (expected version %d)\n",
+            list->version, EXCLUSION_LIST_VERSION));
+        FreePool(list);
+        return EFI_UNSUPPORTED;
+    }
+
+    uint32_t expectedSize = sizeof(ExclusionList) + (list->count - 1) * sizeof(ExclusionListEntry);
+    if (bufferSize != expectedSize) {
+        DEBUG((DEBUG_INFO, "ReBarDXE: incompatible NVRAM exclusion list size %d (expected size %d)\n",
+            bufferSize, expectedSize));
+        FreePool(list);
+        return EFI_UNSUPPORTED;
+    }
+
     exclusionList = list;
     return EFI_SUCCESS;
 }
 
-bool IsDeviceInExclusionList(UINT16 vid, UINT16 did)
+bool IsDeviceInExclusionList(UINT16 vid, UINT16 pid)
 {
     if (exclusionList == NULL) {
         return false;
     }
 
     for (UINT32 i = 0; i < exclusionList->count; i++) {
-        if (exclusionList->entries[i].vid == vid && exclusionList->entries[i].pid == did) {
+        if (exclusionList->entries[i].vid == vid && exclusionList->entries[i].pid == pid) {
             return true;
         }
     }
